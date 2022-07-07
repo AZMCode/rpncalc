@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0.31"
 clearscreen = "1.0.10"
+clap = {version = "3.2.6", features = [ "derive" ] }
+macros-organized = { path = "deps/macros-organized" }

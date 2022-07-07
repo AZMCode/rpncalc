@@ -1,0 +1,8 @@
+display "This messsage will add \"two\" to your number";
+display "Please write a number";
+input;
+2;
++;
+display "The number was:";
+print;
+d

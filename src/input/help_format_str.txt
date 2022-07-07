@@ -6,6 +6,6 @@ These are the available Commands:
 These are the available Operations:
 {}
 
-Additionally, you can enter an empty line to clear the previous error message, or "quit"/"exit" to exit the calculator and show the final stack.
+Additionally, you can enter an empty line to clear the previous display message, or "quit"/"exit" to exit the calculator and show the final stack.
 
 Have fun!

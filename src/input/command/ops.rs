@@ -1,20 +1,7 @@
 use crate::error::*;
 use std::str::FromStr;
-
-pub trait OpDesc {
-    const SHORT_NAME: Option<&'static str>;
-    const NAME: &'static str;
-    const DESCRIPTION: &'static str;
-}
-
-pub trait Op where
-	Self: std::str::FromStr + Clone,
-	Self::Err: Into<Error>
-{
-	const INPUT_ARITY: usize;
-	const OUTPUT_ARITY: usize;
-	fn op(self, input: [f64;Self::INPUT_ARITY]) -> Result<[f64;Self::OUTPUT_ARITY]>;
-}
+use macros_organized::ops::{SimpleOp,simpleop};
+use super::CommandDesc;
 
 macro_rules! op_enum {
 	{
@@ -26,6 +13,7 @@ macro_rules! op_enum {
 		pub enum OpEnum {
 			$($v($v),)*
 		}
+        #[allow(trivial_bounds)]
 		impl FromStr for OpEnum  where
 			$(
 				$v: FromStr,
@@ -52,42 +40,80 @@ macro_rules! op_enum {
             fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
                 match self {
                     $(OpEnum::$v(curr_op) => {
-                        let mut input = [0.0_f64;$v::INPUT_ARITY];
-                        let stack_len = stack.len();
-                        if stack_len < $v::INPUT_ARITY {
-                            return Err(Error::StackEmpty(stack_len, $v::INPUT_ARITY));
-                        }
-                        for i in 0..$v::INPUT_ARITY {
-                            match stack.pop() {
-                                Some(v) => input[i] = v,
-                                None => panic!("Unexpectedly empty stack")
-                            }
-                        }
-                        input.reverse();
-                        let new_elms = Op::op(curr_op, input)?;
-                        stack.extend(new_elms);
-                        Ok(None)
+                        curr_op.comm(stack)
                     },)*
                 }
             }
         }
 
         pub const OP_NAMES_DESCRIPTIONS: [(Option<&'static str>,&'static str,&'static str);${count(v)}] = [$(
-            (<$v as OpDesc>::SHORT_NAME,<$v as OpDesc>::NAME,<$v as OpDesc>::DESCRIPTION),
+            (<$v as CommandDesc>::SHORT_NAME,<$v as CommandDesc>::NAME,<$v as CommandDesc>::DESCRIPTION),
         )*];
 	}
 }
 
 op_enum!{
     pub enum OpEnum {
-        InsNum, Arith, Constants
+        InsNum, Arith, Constants, ExponentialsUnary, ExponentialsBinary, Trigonometric, Cmp, NOP
+    }
+}
+
+#[derive(Clone)]
+pub struct NOP;
+
+impl FromStr for NOP {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.trim() == "" {
+            Ok(NOP)
+        } else {
+            Err(Error::ParseToken(Self::NAME))
+        }
+    }
+}
+
+impl CommandDesc for NOP {
+    const SHORT_NAME: Option<&'static str> = None;
+    const NAME: &'static str = "<Empty>";
+    const DESCRIPTION: &'static str = "Will do nothing";
+}
+
+impl super::Command for NOP {
+    fn comm(self, _: &mut Vec<f64>) -> Result<Option<String>> {
+        Ok(None)
+    }
+}
+
+#[derive(Clone)]
+pub struct Break;
+
+impl CommandDesc for Break {
+    const SHORT_NAME: Option<&'static str> = None;
+    const NAME: &'static str = "Break";
+    const DESCRIPTION: &'static str = "Unconditionally produces an error. Useful for exiting infinite loops.";
+}
+
+impl FromStr for Break {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.trim().to_uppercase().as_str() == "BREAK" {
+            Ok(Self)
+        } else {
+            Err(Error::ParseToken(Self::NAME))
+        }
+    }
+}
+
+impl super::Command for Break {
+    fn comm(self, _: &mut Vec<f64>) -> Result<Option<String>> {
+        Err(Error::Break)
     }
 }
 
 #[derive(Clone)]
 pub struct InsNum(f64);
 
-impl OpDesc for InsNum {
+impl CommandDesc for InsNum {
     const SHORT_NAME: Option<&'static str> = None;
     const NAME: &'static str = "<Number>";
     const DESCRIPTION: &'static str = "Just entering a Floating Point number will add it to the bottom of the stack";
@@ -100,82 +126,130 @@ impl FromStr for InsNum {
     }
 }
 
-impl Op for InsNum {
-    const INPUT_ARITY: usize = 0;
-    const OUTPUT_ARITY: usize = 1;
-    fn op(self, _input: [f64;0]) -> Result<[f64;1]> {
-        Ok([self.0])
+impl super::Command for InsNum {
+    
+    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+        stack.push(self.0);
+        Ok(None)
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,PartialEq,SimpleOp)]
+#[simpleop(
+    name = "+ - * /",
+    description = "Basic Arithmetic operations",
+    input_arity = 2,
+    exclude_fromstr = true
+)]
 pub enum Arith {
+    #[simpleop(|lhs,rhs| lhs + rhs)]
     Add,
+    #[simpleop(|lhs,rhs| lhs - rhs)]
     Sub,
+    #[simpleop(|lhs,rhs| lhs * rhs)]
     Mul,
+    #[simpleop(|lhs,rhs| lhs / rhs)]
     Div
-}
-
-impl OpDesc for Arith {
-    const SHORT_NAME: Option<&'static str> = None;
-    const NAME: &'static str = "+ - * /";
-    const DESCRIPTION: &'static str = "Basic Arithmetic operations";
 }
 
 impl FromStr for Arith {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let t_s = s.trim();
-        use Arith::*;
-        match t_s {
-            "+" => Ok(Add),
-            "-" => Ok(Sub),
-            "*" => Ok(Mul),
-            "/" => Ok(Div),
+        match s.trim() {
+            "+" => Ok(Arith::Add),
+            "-" => Ok(Arith::Sub),
+            "*" => Ok(Arith::Mul),
+            "/" => Ok(Arith::Div),
             _ => Err(Error::ParseToken(Self::NAME))
         }
     }
 }
 
-impl Op for Arith {
-    const INPUT_ARITY: usize = 2;
-    const OUTPUT_ARITY: usize = 1;
-    fn op(self, [lhs,rhs]: [f64;2]) -> Result<[f64;Self::OUTPUT_ARITY]> {
-        use Arith::*;
-        match self {
-            Add => Ok([lhs + rhs]),
-            Sub => Ok([lhs - rhs]),
-            Mul => Ok([lhs * rhs]),
-            Div => Ok([lhs / rhs])
-        }
-    }
+#[derive(Clone,PartialEq,SimpleOp)]
+#[simpleop(
+    name = "Pi | E | Inf",
+    description = "Constants made available for use",
+    input_arity = 0
+)]
+pub enum Constants {
+    #[simpleop(|| std::f64::consts::E)]
+    E,
+    #[simpleop(|| std::f64::consts::PI)]
+    PI,
+    #[simpleop(|| std::f64::INFINITY)]
+    Inf
 }
 
-#[derive(Clone)]
-pub struct Constants(f64);
-
-impl OpDesc for Constants {
-    const SHORT_NAME: Option<&'static str> = None;
-    const NAME: &'static str = "pi / e";
-    const DESCRIPTION: &'static str = "Constants made available for use";
+#[derive(Clone,PartialEq,SimpleOp)]
+#[simpleop(
+    name = "Log10 | Log2 | LogE | Root2",
+    description = "Exponential operations that take one argument",
+    input_arity = 1
+)]
+pub enum ExponentialsUnary {
+    #[simpleop(|input: f64| input.log10())]
+    Log10,
+    #[simpleop(|input: f64| input.log2())]
+    Log2,
+    #[simpleop(|input: f64| input.ln())]
+    LogE,
+    #[simpleop(|input: f64| input.sqrt())]
+    Root2
 }
 
-impl FromStr for Constants {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self> {
-        let trim_up = s.trim().to_uppercase();
-        match trim_up.as_str() {
-            "PI" => Ok(Constants(std::f64::consts::PI)),
-            "E"  => Ok(Constants(std::f64::consts::E )),
-            _    => Err(Error::ParseToken(Self::NAME))
-        }
-    }
+#[derive(Clone,PartialEq,SimpleOp)]
+#[simpleop(
+    name = "Pow | LogN | RootN",
+    description = "Exponential operations that take two arguments",
+    input_arity = 2
+)]
+pub enum ExponentialsBinary {
+    #[simpleop(|lhs: f64,rhs: f64| lhs.powf(rhs))]
+    Pow,
+    #[simpleop(|lhs: f64,rhs: f64| rhs.log(lhs))]
+    LogN,
+    #[simpleop(|lhs: f64,rhs: f64| rhs.powf(lhs.recip()))]
+    RootN
 }
 
-impl Op for Constants {
-    const INPUT_ARITY:  usize = 0;
-    const OUTPUT_ARITY: usize = 1;
-    fn op(self, input: [f64;Self::INPUT_ARITY]) -> Result<[f64;Self::OUTPUT_ARITY]> {
-        InsNum(self.0).op(input)
-    }
+#[derive(Clone,PartialEq,SimpleOp)]
+#[simpleop(
+    name = "Sin | Cos | Tan | ASin | ACos | ATan",
+    description = "Forward and inverse trigonometric functions",
+    input_arity = 1
+)]
+pub enum Trigonometric {
+    #[simpleop(|input: f64| input.sin())]
+    Sin,
+    #[simpleop(|input: f64| input.cos())]
+    Cos,
+    #[simpleop(|input: f64| input.tan())]
+    Tan,
+    #[simpleop(|input: f64| input.asin())]
+    ASin,
+    #[simpleop(|input: f64| input.acos())]
+    ACos,
+    #[simpleop(|input: f64| input.atan())]
+    ATan
+}
+
+#[derive(Clone, PartialEq,SimpleOp)]
+#[simpleop(
+    name = "= | != | > | >= | < | <=",
+    description = "Binary operators that compare two elements on the stack, the return 1 for true and 0 for false. Mostly for use with the if command.",
+    input_arity = 2
+)]
+pub enum Cmp {
+    #[simpleop(|lhs: f64,rhs: f64| if lhs == rhs { 1.0 } else { 0.0 })]
+    Eq,
+    #[simpleop(|lhs: f64,rhs: f64| if lhs != rhs { 1.0 } else { 0.0 })]
+    Neq,
+    #[simpleop(|lhs: f64,rhs: f64| if lhs >  rhs { 1.0 } else { 0.0 })]
+    Gt,
+    #[simpleop(|lhs: f64,rhs: f64| if lhs >= rhs { 1.0 } else { 0.0 })]
+    Gte,
+    #[simpleop(|lhs: f64,rhs: f64| if lhs <  rhs { 1.0 } else { 0.0 })]
+    Lt,
+    #[simpleop(|lhs: f64,rhs: f64| if lhs <= rhs { 1.0 } else { 0.0 })]
+    Lte
 }

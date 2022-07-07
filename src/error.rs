@@ -1,7 +1,7 @@
 
 #[derive(Debug,thiserror::Error)]
 pub enum Error {
-	#[error("Failed to parse input: {0:?}")]
+	#[error("Failed to parse as any command or operation: {0:?}")]
 	Parse(Box<Vec<Error>>),
 	#[error("Failed to parse float: \n{0}")]
 	ParseFloat(#[from] std::num::ParseFloatError),
@@ -18,7 +18,15 @@ pub enum Error {
     #[error("Could not parse token: {0}")]
     ParseToken(&'static str),
     #[error("Command tried to access the stack out of bounds, Index {0} is not within the stack sized {1}")]
-    OOB(usize,usize)
+    OOB(usize,usize),
+    #[error("Possible infinite loop detected. Repetition reached maximum limit")]
+    InfLoop,
+    #[error("Unbalanced Braces")]
+    UnbBraces,
+    #[error("Break command was run")]
+    Break,
+    #[error("Error reading UTF-8")]
+    UTF8(#[from] std::str::Utf8Error)
 }
 
 pub type Result<T=(), E=Error> = std::result::Result<T,E>;

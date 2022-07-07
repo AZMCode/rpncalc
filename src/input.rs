@@ -5,7 +5,6 @@ mod command;
 
 pub enum Input {
 	Exit,
-    NOP,
 	Command(CommandEnum),
 	Op(OpEnum)
 }
@@ -15,9 +14,6 @@ impl std::str::FromStr for Input {
 	fn from_str(input: &str) -> Result<Input> {
 		let mut errors = vec![];
 		let trim_up =  input.trim().to_uppercase();
-        if trim_up == "" {
-            return Ok(Input::NOP);
-        }
 		if trim_up == "EXIT" || trim_up == "QUIT" {
 			return Ok(Input::Exit);
 		} else {
