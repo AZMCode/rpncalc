@@ -1,6 +1,6 @@
 use crate::error::*;
 use std::str::FromStr;
-use macros_organized::ops::{SimpleOp,simpleop};
+use rpncalc_macros::{SimpleOp,simple_op};
 use super::CommandDesc;
 
 macro_rules! op_enum {
@@ -135,20 +135,20 @@ impl super::Command for InsNum {
 }
 
 #[derive(Clone,PartialEq,SimpleOp)]
-#[simpleop(
+#[simple_op(
     name = "+ - * /",
     description = "Basic Arithmetic operations",
     input_arity = 2,
     exclude_fromstr = true
 )]
 pub enum Arith {
-    #[simpleop(|lhs,rhs| lhs + rhs)]
+    #[simple_op(|lhs,rhs| lhs + rhs)]
     Add,
-    #[simpleop(|lhs,rhs| lhs - rhs)]
+    #[simple_op(|lhs,rhs| lhs - rhs)]
     Sub,
-    #[simpleop(|lhs,rhs| lhs * rhs)]
+    #[simple_op(|lhs,rhs| lhs * rhs)]
     Mul,
-    #[simpleop(|lhs,rhs| lhs / rhs)]
+    #[simple_op(|lhs,rhs| lhs / rhs)]
     Div
 }
 
@@ -166,90 +166,90 @@ impl FromStr for Arith {
 }
 
 #[derive(Clone,PartialEq,SimpleOp)]
-#[simpleop(
+#[simple_op(
     name = "Pi | E | Inf",
     description = "Constants made available for use",
     input_arity = 0
 )]
 pub enum Constants {
-    #[simpleop(|| std::f64::consts::E)]
+    #[simple_op(|| std::f64::consts::E)]
     E,
-    #[simpleop(|| std::f64::consts::PI)]
+    #[simple_op(|| std::f64::consts::PI)]
     PI,
-    #[simpleop(|| std::f64::INFINITY)]
+    #[simple_op(|| std::f64::INFINITY)]
     Inf
 }
 
 #[derive(Clone,PartialEq,SimpleOp)]
-#[simpleop(
+#[simple_op(
     name = "Log10 | Log2 | LogE | Root2",
     description = "Exponential operations that take one argument",
     input_arity = 1
 )]
 pub enum ExponentialsUnary {
-    #[simpleop(|input: f64| input.log10())]
+    #[simple_op(|input: f64| input.log10())]
     Log10,
-    #[simpleop(|input: f64| input.log2())]
+    #[simple_op(|input: f64| input.log2())]
     Log2,
-    #[simpleop(|input: f64| input.ln())]
+    #[simple_op(|input: f64| input.ln())]
     LogE,
-    #[simpleop(|input: f64| input.sqrt())]
+    #[simple_op(|input: f64| input.sqrt())]
     Root2
 }
 
 #[derive(Clone,PartialEq,SimpleOp)]
-#[simpleop(
+#[simple_op(
     name = "Pow | LogN | RootN",
     description = "Exponential operations that take two arguments",
     input_arity = 2
 )]
 pub enum ExponentialsBinary {
-    #[simpleop(|lhs: f64,rhs: f64| lhs.powf(rhs))]
+    #[simple_op(|lhs: f64,rhs: f64| lhs.powf(rhs))]
     Pow,
-    #[simpleop(|lhs: f64,rhs: f64| rhs.log(lhs))]
+    #[simple_op(|lhs: f64,rhs: f64| rhs.log(lhs))]
     LogN,
-    #[simpleop(|lhs: f64,rhs: f64| rhs.powf(lhs.recip()))]
+    #[simple_op(|lhs: f64,rhs: f64| rhs.powf(lhs.recip()))]
     RootN
 }
 
 #[derive(Clone,PartialEq,SimpleOp)]
-#[simpleop(
+#[simple_op(
     name = "Sin | Cos | Tan | ASin | ACos | ATan",
     description = "Forward and inverse trigonometric functions",
     input_arity = 1
 )]
 pub enum Trigonometric {
-    #[simpleop(|input: f64| input.sin())]
+    #[simple_op(|input: f64| input.sin())]
     Sin,
-    #[simpleop(|input: f64| input.cos())]
+    #[simple_op(|input: f64| input.cos())]
     Cos,
-    #[simpleop(|input: f64| input.tan())]
+    #[simple_op(|input: f64| input.tan())]
     Tan,
-    #[simpleop(|input: f64| input.asin())]
+    #[simple_op(|input: f64| input.asin())]
     ASin,
-    #[simpleop(|input: f64| input.acos())]
+    #[simple_op(|input: f64| input.acos())]
     ACos,
-    #[simpleop(|input: f64| input.atan())]
+    #[simple_op(|input: f64| input.atan())]
     ATan
 }
 
 #[derive(Clone, PartialEq,SimpleOp)]
-#[simpleop(
+#[simple_op(
     name = "= | != | > | >= | < | <=",
     description = "Binary operators that compare two elements on the stack, the return 1 for true and 0 for false. Mostly for use with the if command.",
     input_arity = 2
 )]
 pub enum Cmp {
-    #[simpleop(|lhs: f64,rhs: f64| if lhs == rhs { 1.0 } else { 0.0 })]
+    #[simple_op(|lhs: f64,rhs: f64| if lhs == rhs { 1.0 } else { 0.0 })]
     Eq,
-    #[simpleop(|lhs: f64,rhs: f64| if lhs != rhs { 1.0 } else { 0.0 })]
+    #[simple_op(|lhs: f64,rhs: f64| if lhs != rhs { 1.0 } else { 0.0 })]
     Neq,
-    #[simpleop(|lhs: f64,rhs: f64| if lhs >  rhs { 1.0 } else { 0.0 })]
+    #[simple_op(|lhs: f64,rhs: f64| if lhs >  rhs { 1.0 } else { 0.0 })]
     Gt,
-    #[simpleop(|lhs: f64,rhs: f64| if lhs >= rhs { 1.0 } else { 0.0 })]
+    #[simple_op(|lhs: f64,rhs: f64| if lhs >= rhs { 1.0 } else { 0.0 })]
     Gte,
-    #[simpleop(|lhs: f64,rhs: f64| if lhs <  rhs { 1.0 } else { 0.0 })]
+    #[simple_op(|lhs: f64,rhs: f64| if lhs <  rhs { 1.0 } else { 0.0 })]
     Lt,
-    #[simpleop(|lhs: f64,rhs: f64| if lhs <= rhs { 1.0 } else { 0.0 })]
+    #[simple_op(|lhs: f64,rhs: f64| if lhs <= rhs { 1.0 } else { 0.0 })]
     Lte
 }
