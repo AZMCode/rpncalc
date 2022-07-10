@@ -1,0 +1,6 @@
+[submodule "rpncalc_code"]
+	path = rpncalc_code
+	url = ./rpncalc-code/
+[submodule "rpncalc-code"]
+	path = rpncalc-code
+	url = ../rpncalc-code/
