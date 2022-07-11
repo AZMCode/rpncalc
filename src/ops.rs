@@ -31,16 +31,16 @@ macro_rules! op_enum {
 						Ok(v) => return Ok(OpEnum::$v(v))
 					}
 				)*
-				return Err(Error::Parse(Box::new(parse_errors)))
+				return Err(Error::ParseEnum(parse_errors))
 			}
 		}
 
         impl super::Command for OpEnum {
             #[allow(unused_variables)]
-            fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+            fn comm(self, stack: &mut Vec<f64>, stdin: impl ::std::io::Read, stdout: impl ::std::io::Write) -> Result<Option<String>> {
                 match self {
                     $(OpEnum::$v(curr_op) => {
-                        curr_op.comm(stack)
+                        curr_op.comm(stack,stdin,stdout)
                     },)*
                 }
             }
@@ -79,34 +79,8 @@ impl CommandDesc for NOP {
 }
 
 impl super::Command for NOP {
-    fn comm(self, _: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, _: &mut Vec<f64>, _: impl std::io::Read, _: impl std::io::Write) -> Result<Option<String>> {
         Ok(None)
-    }
-}
-
-#[derive(Clone)]
-pub struct Break;
-
-impl CommandDesc for Break {
-    const SHORT_NAME: Option<&'static str> = None;
-    const NAME: &'static str = "Break";
-    const DESCRIPTION: &'static str = "Unconditionally produces an error. Useful for exiting infinite loops.";
-}
-
-impl FromStr for Break {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.trim().to_uppercase().as_str() == "BREAK" {
-            Ok(Self)
-        } else {
-            Err(Error::ParseToken(Self::NAME))
-        }
-    }
-}
-
-impl super::Command for Break {
-    fn comm(self, _: &mut Vec<f64>) -> Result<Option<String>> {
-        Err(Error::Break)
     }
 }
 
@@ -128,7 +102,7 @@ impl FromStr for InsNum {
 
 impl super::Command for InsNum {
     
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, _: impl std::io::Read, _: impl std::io::Write) -> Result<Option<String>> {
         stack.push(self.0);
         Ok(None)
     }

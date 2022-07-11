@@ -94,8 +94,8 @@ pub fn ops_derive_SimpleOp(input_stream: TokenStream) -> TokenStream {
         let variants_iter = variant_to_closure_map.keys().map(|v| v.clone()).collect::<Vec<_>>();
         let variants_str_iter = variant_to_closure_map.keys().map(|i| i.to_string().trim().to_uppercase()).collect::<Vec<_>>();
         let closures_iter = variant_to_closure_map.values().map(|v| v.clone()).collect::<Vec<_>>();
-        let command_desc = quote::quote!(crate::input::command::CommandDesc);
-        let command = quote::quote!(crate::input::command::Command);
+        let command_desc = quote::quote!(crate::CommandDesc);
+        let command = quote::quote!(crate::Command);
         let from_str = quote::quote!(::std::str::FromStr);
         let result = quote::quote!(::std::result::Result);
         let error = quote::quote!(crate::error::Error);
@@ -107,7 +107,7 @@ pub fn ops_derive_SimpleOp(input_stream: TokenStream) -> TokenStream {
             }
 
             impl #command for #self_ident {
-                fn comm(self, stack: &mut Vec<f64>) -> #result <Option<String>, #error > {
+                fn comm(self, stack: &mut Vec<f64>, _stdin: impl ::std::io::Read, _stdout: impl ::std::io::Write) -> #result <Option<String>, #error > {
                     if stack.len() < #input_arity {
                         return Err(#error :: StackEmpty(stack.len(), #input_arity ));
                     }

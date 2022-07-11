@@ -6,12 +6,12 @@
 use std::io::Write;
 use std::io::BufRead;
 
-mod error;
+mod tui_error;
+use tui_error::*;
+
 mod input;
 
-use error::*;
-
-use crate::input::Command;
+use rpncalc::Command;
 
 #[derive(clap::Parser)]
 #[clap(version,about,author)]
@@ -30,7 +30,11 @@ fn main() -> Result {
         Some(p) => {
             let file_bytes = std::fs::read(p)?;
             let file_str = std::str::from_utf8(&file_bytes)?;
-            match input::Chain::from_bare(file_str)?.comm(&mut stack) {
+            let stdin = std::io::stdin();
+            let mut stdin_lock = stdin.lock();
+            let stdout = std::io::stdout();
+            let mut stdout_lock = stdout.lock();
+            match rpncalc::Chain::from_bare(file_str)?.comm(&mut stack,&mut stdin_lock,&mut stdout_lock) {
                 Ok(msg_opt) => {
                     match msg_opt {
                         Some(msg) => println!("{msg}"),
@@ -49,7 +53,7 @@ fn main() -> Result {
                     print_stack(&stack, &mut stdout_lock)?;
                     std::mem::drop(stdout_lock);
                     println!("And with the following error:");
-                    Err(e)
+                    Err(e.into())
                 }
             }
         },
@@ -66,31 +70,29 @@ fn main() -> Result {
                 print_stack(&stack,&mut stdout_lock)?;
                 write!(stdout_lock, "> ")?;
                 stdout_lock.flush()?;
-                std::mem::drop(stdout_lock);
                 let mut input_buf = String::new();
                 let stdin = std::io::stdin();
                 let mut stdin_lock = stdin.lock();
                 stdin_lock.read_line(&mut input_buf)?;
-                std::mem::drop(stdin_lock);
                 use input::*;
                 let input_res = input_buf.trim().parse::<Input>();
                 match input_res {
                     Ok(input) => prev_msg_op = match input {
                         Input::Exit => break,
-                        Input::Command(c) => {
+                        Input::Help => {
+                            let [commands,ops] = [rpncalc::COMM_NAMES_DESCRIPTIONS.as_slice(),rpncalc::ops::OP_NAMES_DESCRIPTIONS.as_slice()].map(|t|
+                                t.iter().fold(String::new(),|acc,(short_name_op,name,desc)|
+                                    match short_name_op {
+                                        Some(short_name) => format!("{acc} {short_name} | {name} : {desc}\n" ),
+                                        None => format!("{acc} {name} : {desc}\n")
+                                    }
+                                )
+                            );
+                            Some(format!(include_str!("help_format_str.txt"),commands,ops))
+                        }
+                        Input::CommandOrOp(c) => {
                             prev_stack.clone_from(&stack);
-                            match c.comm(&mut stack) {
-                                Ok(new_msg_op) => 
-                                    new_msg_op,
-                                Err(e) => {
-                                    stack.clone_from(&prev_stack);
-                                    Some(format!("Error executing last command, reverting stack: \n{0}",e))
-                                },
-                            }
-                        },
-                        Input::Op(o) => {
-                            prev_stack.clone_from(&stack);
-                            match o.comm(&mut stack) {
+                            match c.comm(&mut stack, &mut stdin_lock, &mut stdout_lock) {
                                 Ok(new_msg_op) => 
                                     new_msg_op,
                                 Err(e) => {
@@ -115,42 +117,10 @@ fn main() -> Result {
     }
 }
 
-pub fn format_num(input: f64) -> String {
-    let sign = if input.is_sign_positive() { " " } else {"-"};
-    if input.is_finite() {
-        let abs_num = input.abs();
-        let left_digits_len = if abs_num <= 1.0 { 1 } else { abs_num.log10() as usize + 1 };
-        let excess_digits = left_digits_len % 3;
-        let padding_amount = if excess_digits == 0 { 0 } else { 3 - excess_digits };
-        let padding = ' '.to_string().repeat(padding_amount);
-        let num = format!("{padding}{abs_num:.9}");
-        let regrouped_num = num.split('.').map(|side| side.chars()
-            .fold((vec![],vec![]),|(mut tail,mut curr),c| {
-                curr.push(c);
-                if curr.len() == 3 {
-                    tail.push(curr);
-                    (tail,vec![])
-                } else {
-                    (tail,curr)
-                }
-            }).0.into_iter().map(|three_chunk|
-                three_chunk.into_iter().fold(String::with_capacity(3),|mut acc,c| { acc.push(c); acc })
-            ).intersperse(" ".to_string()).fold(String::new(),|acc,s| acc + &s)
-        ).intersperse(".".to_string()).fold(String::new(),|acc,s| acc + &s);
-        format!("{sign}{regrouped_num}")
-    } else {
-        if input.is_nan() {
-            format!("{sign}NaN")
-        } else {
-            format!("{sign}Inf")
-        }
-    }
-}
-
 fn print_stack(stack: &[f64], mut w: impl Write) -> Result {
     if stack.len() > 0 {
         for (index,elm) in stack.iter().rev().enumerate().rev() {
-            let num_formatted = format_num(*elm);
+            let num_formatted = rpncalc::format_num(*elm);
             writeln!(w,"{:3}: {}",index,num_formatted)?;
         }
     } else {

@@ -1,8 +1,11 @@
+#![feature(macro_metavar_expr)]
+#![feature(iter_intersperse)]
+
+pub mod error;
 use crate::error::*;
 use std::str::FromStr;
 
-mod ops;
-pub use ops::*;
+pub mod ops;
 
 const MAX_REPETITIONS: usize = 1_000_000;
 
@@ -16,7 +19,7 @@ pub trait Command where
     Self: std::str::FromStr + Clone,
     Self::Err: Into<Error>
 {
-	fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>>;
+	fn comm(self, stack: &mut Vec<f64>, stdin: impl std::io::Read, stdout: impl std::io::Write) -> Result<Option<String>>;
 }
 
 macro_rules! command_enum {
@@ -32,9 +35,9 @@ macro_rules! command_enum {
 
         impl Command for CommandEnum {
             #[allow(unused_variables)]
-            fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+            fn comm(self, stack: &mut Vec<f64>, stdin: impl std::io::Read, stdout: impl std::io::Write) -> Result<Option<String>> {
                 match self {
-                    $(CommandEnum::$v(v) => Command::comm(v,stack),)*
+                    $(CommandEnum::$v(v) => Command::comm(v,stack,stdin,stdout),)*
                 }
             }
         }
@@ -51,7 +54,7 @@ macro_rules! command_enum {
 						Ok(v) => return Ok(CommandEnum::$v(v))
 					}
 				)*
-				return Err(Error::Parse(Box::new(parse_errors)))
+				Err(Error::ParseEnum(parse_errors))
 			}
         }
 
@@ -63,42 +66,33 @@ macro_rules! command_enum {
 
 command_enum!{
     pub enum CommandEnum {
-        Help, Drop, Dup, Swap, Reverse, Repeat, Chain, Conditional, Break, Input, Display, Print
+        Drop, Dup, Swap, Reverse, Repeat, Chain, Conditional, Break, Input, Display, Print
     }
 }
 
 #[derive(Clone)]
-pub struct Help;
+pub struct Break;
 
-impl CommandDesc for Help {
-    const SHORT_NAME: Option<&'static str> = Some("H");
-    const NAME: &'static str = "Help";
-    const DESCRIPTION: &'static str = "Shows the current help page";
+impl CommandDesc for Break {
+    const SHORT_NAME: Option<&'static str> = None;
+    const NAME: &'static str = "Break";
+    const DESCRIPTION: &'static str = "Unconditionally produces an error. Useful for exiting infinite loops.";
 }
 
-impl FromStr for Help {
+impl FromStr for Break {
     type Err = Error;
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let trim_up_input = input.trim().to_uppercase();
-        if trim_up_input == "H" || trim_up_input == "HELP" {
-            Ok(Help)
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.trim().to_uppercase().as_str() == "BREAK" {
+            Ok(Self)
         } else {
-            Err(Error::ParseToken(Help::NAME))
+            Err(Error::ParseToken(Self::NAME))
         }
     }
 }
 
-impl Command for Help {
-    fn comm(self, _stack: &mut Vec<f64>) -> Result<Option<String>> {
-        let [commands,ops] = [COMM_NAMES_DESCRIPTIONS.as_slice(),ops::OP_NAMES_DESCRIPTIONS.as_slice()].map(|t|
-            t.iter().fold(String::new(),|acc,(short_name_op,name,desc)|
-                match short_name_op {
-                    Some(short_name) => format!("{acc} {short_name} | {name} : {desc}\n" ),
-                    None => format!("{acc} {name} : {desc}\n")
-                }
-            )
-        );
-        Ok(Some(format!(include_str!("help_format_str.txt"),commands,ops)))
+impl Command for Break {
+    fn comm(self, _: &mut Vec<f64>, _: impl std::io::Read, _: impl std::io::Write) -> Result<Option<String>> {
+        Err(Error::Break)
     }
 }
 
@@ -145,7 +139,7 @@ impl FromStr for Drop {
 }
 
 impl Command for Drop {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, _: impl std::io::Read, _: impl std::io::Write) -> Result<Option<String>> {
         match self {
             Drop::Some(amount) => {
                 let stack_len = stack.len();
@@ -203,7 +197,7 @@ impl FromStr for Dup {
 }
 
 impl Command for Dup {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, _: impl std::io::Read, _: impl std::io::Write) -> Result<Option<String>> {
         let Dup(amount) = self;
         if let Some(&last_elm) = stack.last() {
             for _ in 0..amount {
@@ -258,7 +252,7 @@ impl FromStr for Swap {
 }
 
 impl Command for Swap {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, _: impl std::io::Read, _: impl std::io::Write) -> Result<Option<String>> {
         match self {
             Swap::Specified(from, to) => {
                 let stack_len = stack.len();
@@ -307,7 +301,7 @@ impl FromStr for Reverse {
 }
 
 impl Command for Reverse {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, _: impl std::io::Read, _: impl std::io::Write) -> Result<Option<String>> {
         stack.reverse();
         Ok(None)
     }
@@ -318,7 +312,7 @@ impl Command for Reverse {
 #[derive(Clone)]
 pub enum CommandOrOp {
     Command(CommandEnum),
-    Op(OpEnum)
+    Op(ops::OpEnum)
 }
 
 impl FromStr for CommandOrOp {
@@ -329,21 +323,21 @@ impl FromStr for CommandOrOp {
             Ok(v) => return Ok(CommandOrOp::Command(v)),
             Err(e) => {
                 errors.push(e);
-                match s.parse::<OpEnum>() {
+                match s.parse::<ops::OpEnum>() {
                     Ok(v) => return Ok(CommandOrOp::Op(v)),
                     Err(e) => errors.push(e)
                 }
             }
         }
-        Err(Error::Parse(Box::new(errors)))
+        Err(Error::ParseEnum(errors))
     }
 }
 
 impl Command for CommandOrOp {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, stdin: impl std::io::Read, stdout: impl std::io::Write) -> Result<Option<String>> {
         match self {
-            CommandOrOp::Command(c) => c.comm(stack),
-            CommandOrOp::Op(o) => o.comm(stack)
+            CommandOrOp::Command(c) => c.comm(stack,stdin,stdout),
+            CommandOrOp::Op(o) => o.comm(stack,stdin,stdout)
         }
     }
 }
@@ -444,7 +438,7 @@ impl FromStr for Repeat {
 }
 
 impl Command for Repeat {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, mut stdin: impl std::io::Read, mut stdout: impl std::io::Write) -> Result<Option<String>> {
         match self {
             Repeat::Unbounded(c) => {
                 let mut rep_count = 0;
@@ -452,7 +446,7 @@ impl Command for Repeat {
                     if rep_count >= MAX_REPETITIONS {
                         break Err(Error::InfLoop)
                     }
-                    match c.clone().comm(stack) {
+                    match c.clone().comm(stack,&mut stdin, &mut stdout) {
                         Ok(_) => (),
                         Err(e) => break Ok(Some(format!("Ended Repetitions with the following error: \n{e}")))
                     }
@@ -462,7 +456,7 @@ impl Command for Repeat {
             Repeat::Bounded(reps, c) => {
                 let mut output = Ok(None);
                 for _ in 0..reps {
-                    output = c.clone().comm(stack);
+                    output = c.clone().comm(stack, &mut stdin, &mut stdout);
                     if output.is_err() { break; }
                 }
                 output
@@ -521,10 +515,10 @@ impl FromStr for Chain {
 }
 
 impl Command for Chain {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, mut stdin: impl std::io::Read, mut stdout: impl std::io::Write) -> Result<Option<String>> {
         let mut out = None;
         for c in self.0 {
-            out = c.comm(stack)?;
+            out = c.comm(stack,&mut stdin,&mut stdout)?;
         }
         Ok(out)
     }
@@ -635,16 +629,16 @@ impl FromStr for Conditional {
 }
 
 impl Command for Conditional {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, mut stdin: impl std::io::Read, mut stdout: impl std::io::Write) -> Result<Option<String>> {
         let [first_chain,second_chain] = self.1;
         match self.0 {
             ConditionalKind::If => if let Some(v) = stack.pop() {
-                (if v == 0.0 { first_chain } else { second_chain }).comm(stack)
+                (if v == 0.0 { first_chain } else { second_chain }).comm(stack,stdin,stdout)
             } else {
                 Err(Error::StackEmpty(stack.len(), 1))
             },
-            ConditionalKind::Try => match first_chain.comm(stack) {
-                Err(_) => second_chain.comm(stack),
+            ConditionalKind::Try => match first_chain.comm(stack,&mut stdin,&mut stdout) {
+                Err(_) => second_chain.comm(stack,stdin,stdout),
                 Ok(v) => Ok(v)
             }
         }
@@ -691,8 +685,8 @@ impl FromStr for Display {
 }
 
 impl Command for Display {
-    fn comm(self, _: &mut Vec<f64>) -> Result<Option<String>> {
-        println!("{}",self.0);
+    fn comm(self, _: &mut Vec<f64>, _: impl std::io::Read, mut stdout: impl std::io::Write) -> Result<Option<String>> {
+        writeln!(stdout,"{}",self.0)?;
         Ok(Some(self.0))
     }
 }
@@ -718,13 +712,11 @@ impl FromStr for Input {
 }
 
 impl Command for Input {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
+    fn comm(self, stack: &mut Vec<f64>, mut stdin: impl std::io::Read, stdout: impl std::io::Write) -> Result<Option<String>> {
         let mut buf = String::new();
-        let stdin = std::io::stdin();
-        let mut stdin_lock = stdin.lock();
         use std::io::BufRead;
-        stdin_lock.read_line(&mut buf)?;
-        Ok(buf.trim().parse::<ops::InsNum>()?.comm(stack)?)
+        std::io::BufReader::new(&mut stdin).read_line(&mut buf)?;
+        Ok(buf.trim().parse::<ops::InsNum>()?.comm(stack,stdin,stdout)?)
     }
 }
 
@@ -748,9 +740,41 @@ impl FromStr for Print {
 }
 
 impl Command for Print {
-    fn comm(self, stack: &mut Vec<f64>) -> Result<Option<String>> {
-        let f_num = crate::format_num(stack.pop().ok_or(Error::StackEmpty(0, 1))?);
-        println!("{f_num}");
+    fn comm(self, stack: &mut Vec<f64>, _: impl std::io::Read, mut stdout: impl std::io::Write) -> Result<Option<String>> {
+        let f_num = format_num(stack.pop().ok_or(Error::StackEmpty(0, 1))?);
+        writeln!(stdout,"{f_num}")?;
         Ok(Some(f_num))
+    }
+}
+
+pub fn format_num(input: f64) -> String {
+    let sign = if input.is_sign_positive() { " " } else {"-"};
+    if input.is_finite() {
+        let abs_num = input.abs();
+        let left_digits_len = if abs_num <= 1.0 { 1 } else { abs_num.log10() as usize + 1 };
+        let excess_digits = left_digits_len % 3;
+        let padding_amount = if excess_digits == 0 { 0 } else { 3 - excess_digits };
+        let padding = ' '.to_string().repeat(padding_amount);
+        let num = format!("{padding}{abs_num:.9}");
+        let regrouped_num = num.split('.').map(|side| side.chars()
+            .fold((vec![],vec![]),|(mut tail,mut curr),c| {
+                curr.push(c);
+                if curr.len() == 3 {
+                    tail.push(curr);
+                    (tail,vec![])
+                } else {
+                    (tail,curr)
+                }
+            }).0.into_iter().map(|three_chunk|
+                three_chunk.into_iter().fold(String::with_capacity(3),|mut acc,c| { acc.push(c); acc })
+            ).intersperse(" ".to_string()).fold(String::new(),|acc,s| acc + &s)
+        ).intersperse(".".to_string()).fold(String::new(),|acc,s| acc + &s);
+        format!("{sign}{regrouped_num}")
+    } else {
+        if input.is_nan() {
+            format!("{sign}NaN")
+        } else {
+            format!("{sign}Inf")
+        }
     }
 }

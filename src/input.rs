@@ -1,12 +1,10 @@
-use crate::error::*;
-
-pub use command::*;
-mod command;
+use crate::tui_error::*;
+use rpncalc::CommandOrOp;
 
 pub enum Input {
 	Exit,
-	Command(CommandEnum),
-	Op(OpEnum)
+    Help,
+	CommandOrOp(CommandOrOp)
 }
 
 impl std::str::FromStr for Input {
@@ -19,14 +17,15 @@ impl std::str::FromStr for Input {
 		} else {
 			errors.push(Error::Exit);
 		}
-		match input.parse::<CommandEnum>() {
-			Ok(v) => return Ok(Input::Command(v)),
-			Err(e) => errors.push(e)
+        if trim_up == "HELP" {
+            return Ok(Input::Help);
+        } else {
+            errors.push(Error::Help);
+        }
+		match input.parse::<CommandOrOp>() {
+			Ok(v) => return Ok(Input::CommandOrOp(v)),
+			Err(e) => errors.push(e.into())
 		}
-		match input.parse::<OpEnum>() {
-			Ok(v) => return Ok(Input::Op(v)),
-			Err(e) => errors.push(e)
-		}
-		Err(Error::Parse(Box::new(errors)))
+		Err(Error::Parse(errors))
 	}
 }
