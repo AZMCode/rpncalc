@@ -4,3 +4,6 @@
 [submodule "rpncalc-code"]
 	path = rpncalc-code
 	url = ../rpncalc-code/
+[submodule "rpncalc-yew"]
+	path = rpncalc-yew
+	url = ./rpncalc-yew
