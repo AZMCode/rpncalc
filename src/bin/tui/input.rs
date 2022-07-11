@@ -17,7 +17,7 @@ impl std::str::FromStr for Input {
 		} else {
 			errors.push(Error::Exit);
 		}
-        if trim_up == "HELP" {
+        if trim_up == "HELP" || trim_up == "H" {
             return Ok(Input::Help);
         } else {
             errors.push(Error::Help);

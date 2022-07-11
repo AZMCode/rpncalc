@@ -446,7 +446,7 @@ impl Command for Repeat {
                     if rep_count >= MAX_REPETITIONS {
                         break Err(Error::InfLoop)
                     }
-                    match c.clone().comm(stack,&mut stdin, &mut stdout) {
+                    match c.clone().comm(stack,Box::new(&mut stdin) as Box<dyn std::io::Read>, Box::new(&mut stdout) as Box<dyn std::io::Write>) {
                         Ok(_) => (),
                         Err(e) => break Ok(Some(format!("Ended Repetitions with the following error: \n{e}")))
                     }
@@ -456,7 +456,7 @@ impl Command for Repeat {
             Repeat::Bounded(reps, c) => {
                 let mut output = Ok(None);
                 for _ in 0..reps {
-                    output = c.clone().comm(stack, &mut stdin, &mut stdout);
+                    output = c.clone().comm(stack, Box::new(&mut stdin) as Box<dyn std::io::Read>, Box::new(&mut stdout) as Box<dyn std::io::Write>);
                     if output.is_err() { break; }
                 }
                 output
@@ -518,7 +518,7 @@ impl Command for Chain {
     fn comm(self, stack: &mut Vec<f64>, mut stdin: impl std::io::Read, mut stdout: impl std::io::Write) -> Result<Option<String>> {
         let mut out = None;
         for c in self.0 {
-            out = c.comm(stack,&mut stdin,&mut stdout)?;
+            out = c.comm(stack,Box::new(&mut stdin) as Box<dyn std::io::Read>,Box::new(&mut stdout) as Box<dyn std::io::Write>)?;
         }
         Ok(out)
     }
@@ -637,7 +637,7 @@ impl Command for Conditional {
             } else {
                 Err(Error::StackEmpty(stack.len(), 1))
             },
-            ConditionalKind::Try => match first_chain.comm(stack,&mut stdin,&mut stdout) {
+            ConditionalKind::Try => match first_chain.comm(stack,Box::new(&mut stdin) as Box<dyn std::io::Read>,Box::new(&mut stdout) as Box<dyn std::io::Write>) {
                 Err(_) => second_chain.comm(stack,stdin,stdout),
                 Ok(v) => Ok(v)
             }

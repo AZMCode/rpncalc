@@ -6,6 +6,7 @@ These are the available Commands:
 These are the available Operations:
 {}
 
+You can also enter "h"/"help" to read this message again.
 Additionally, you can enter an empty line to clear the previous display message, or "quit"/"exit" to exit the calculator and show the final stack.
 
 Have fun!
