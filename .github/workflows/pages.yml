@@ -64,6 +64,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/rpncalc/rpncalc-yew
           rustup default nightly
+          declare TRUNK_CONF=$(mktemp)
+          echo '[build]' >> $TRUNK_CONF
+          echo 'release = true'
+          echo 'public_url="https://raw.githubusercontent.com/AZMCode/rpncalc-yew-deployment/main/"'
           trunk build
       - name: Remove existing files in Pages deployment
         run: |
