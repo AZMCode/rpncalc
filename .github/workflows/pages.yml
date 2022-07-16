@@ -68,7 +68,7 @@ jobs:
           echo '[build]' >> $TRUNK_CONF
           echo 'release = true'
           echo 'public_url="https://raw.githubusercontent.com/AZMCode/rpncalc-yew-deployment/main/"'
-          trunk build
+          trunk build --config $TRUNK_CONF
       - name: Remove existing files in Pages deployment
         run: |
           cd $GITHUB_WORKSPACE/pages
