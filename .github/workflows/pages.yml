@@ -44,7 +44,7 @@ jobs:
         run: |
           cargo install trunk
       - name: Install Rust Wasm
-        #if: ${{ steps.env-ready.outputs.cache-hit == false }}
+        if: ${{ steps.env-ready.outputs.cache-hit == false }}
         uses: actions-rs/toolchain@v1.0.6
         with:
           toolchain: nightly
