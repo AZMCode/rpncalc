@@ -20,11 +20,10 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     steps:
-      - name: Install Rust
+      - name: Install Rust Native
         uses: actions-rs/toolchain@v1.0.6
         with:
-          toolchain: nightly
-          target: wasm32-unknown-unknown
+          toolchain: stable
           default: true
       - name: Install Trunk
         run: |
@@ -40,9 +39,15 @@ jobs:
           repository: git@github.com:AZMCode/rpncalc-yew-deployment.git
           ssh-key: ${{ secrets.PAGES_DEPLOYMENT }}
           path: ./pages
+      - name: Install Rust Wasm
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: nightly
+          target: wasm32-unknown-unknown
       - name: Build Deployment
         run: |
           cd $GITHUB_WORKSPACE/rpncalc/rpncalc-yew
+          rustup default nightly
           trunk build
       - name: Remove existing files in Pages deployment
         run: |
