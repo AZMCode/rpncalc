@@ -20,24 +20,28 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     steps:
+      - name: Cache previous uses
+        id: env-ready
+        uses: actions/cache@v3.0.5
+        with:
+          path: $HOME/.cargo/*
+          key: pages-deploy-env-ready-$(date --iso-8601)
       - name: Install Rust Native
+        if: ${{ steps.env-ready.outputs.cache-hit == 'false' }}
         uses: actions-rs/toolchain@v1.0.6
         with:
           toolchain: stable
           default: true
       - name: Install Trunk
+        if: ${{ steps.env-ready.outputs.cache-hit == 'false' }}
         run: |
           cargo install trunk
       - name: Install Rust Wasm
+        if: ${{ steps.env-ready.outputs.cache-hit == 'false' }}
         uses: actions-rs/toolchain@v1.0.6
         with:
           toolchain: nightly
           target: wasm32-unknown-unknown
-      - name: Cache previous uses
-        uses: actions/cache@v3.0.5
-        with:
-          path: $HOME/*
-          key: trunk-ready-$(date --iso-8601)
       - name: Check out Main repo
         uses: actions/checkout@v3
         with:
