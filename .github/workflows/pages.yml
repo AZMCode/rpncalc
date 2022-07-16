@@ -44,10 +44,11 @@ jobs:
         run: |
           cargo install trunk
       - name: Install Rust Wasm
-        if: ${{ steps.env-ready.outputs.cache-hit == false }}
+        #if: ${{ steps.env-ready.outputs.cache-hit == false }}
         uses: actions-rs/toolchain@v1.0.6
         with:
           toolchain: nightly
+          default: true
           target: wasm32-unknown-unknown
       - name: Check out Main repo
         uses: actions/checkout@v3
@@ -62,12 +63,11 @@ jobs:
           path: ./pages
       - name: Build Deployment
         run: |
-          cd $GITHUB_WORKSPACE/rpncalc/rpncalc-yew
-          rustup default nightly
           declare TRUNK_CONF=$(mktemp)
           echo '[build]' >> $TRUNK_CONF
           echo 'release = true' >> $TRUNK_CONF
           echo 'public_url="https://raw.githubusercontent.com/AZMCode/rpncalc-yew-deployment/main/"' >> $TRUNK_CONF
+          cd $GITHUB_WORKSPACE/rpncalc/rpncalc-yew
           trunk --config $TRUNK_CONF build
       - name: Remove existing files in Pages deployment
         run: |
