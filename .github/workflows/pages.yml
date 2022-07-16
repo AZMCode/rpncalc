@@ -27,7 +27,11 @@ jobs:
         id: env-ready
         uses: actions/cache@v3.0.5
         with:
-          path: $HOME/.cargo/*
+          path: |
+            $HOME/.cargo/*
+            $HOME/.bashrc
+            $HOME/.profile
+            $HOME/.bash_profile
           key: pages-deploy-env-ready-${{ env.CURR_DATE }}
       - name: Install Rust Native
         if: ${{ steps.env-ready.outputs.cache-hit == false }}
