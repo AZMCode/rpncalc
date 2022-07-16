@@ -85,7 +85,7 @@ impl super::Command for NOP {
 }
 
 #[derive(Clone)]
-pub struct InsNum(f64);
+pub struct InsNum(pub f64);
 
 impl CommandDesc for InsNum {
     const SHORT_NAME: Option<&'static str> = None;

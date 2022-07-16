@@ -162,7 +162,7 @@ impl Command for Drop {
 }
 
 #[derive(Clone)]
-pub struct Dup(usize);
+pub struct Dup(pub usize);
 
 impl CommandDesc for Dup {
     const SHORT_NAME: Option<&'static str> = Some("Dup [int]");
@@ -466,7 +466,7 @@ impl Command for Repeat {
 }
 
 #[derive(Clone)]
-pub struct Chain(Vec<CommandOrOp>);
+pub struct Chain(pub Vec<CommandOrOp>);
 
 impl Chain {
     pub fn from_bare(input: &str) -> Result<Self> {
@@ -525,13 +525,13 @@ impl Command for Chain {
 }
 
 #[derive(Clone)]
-enum ConditionalKind {
+pub enum ConditionalKind {
     If,
     Try
 }
 
 #[derive(Clone)]
-pub struct Conditional(ConditionalKind,[Chain;2]);
+pub struct Conditional(pub ConditionalKind,pub [Chain;2]);
 
 impl CommandDesc for Conditional {
     const SHORT_NAME: Option<&'static str> = None;
@@ -647,7 +647,7 @@ impl Command for Conditional {
 }
 
 #[derive(Clone)]
-pub struct Display(String);
+pub struct Display(pub String);
 
 impl CommandDesc for Display {
     const SHORT_NAME: Option<&'static str> = Some("Disp \"<Escaped String>\"");

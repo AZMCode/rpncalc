@@ -7,6 +7,14 @@ edition = "2021"
 
 [dependencies]
 thiserror = "1.0.31"
-clearscreen = "1.0.10"
 clap = {version = "3.2.6", features = [ "derive" ] }
 rpncalc-macros = { path = "deps/macros" }
+clearscreen = { version = "1.0.10", optional = true }
+
+[features]
+build-binary = [ "clearscreen" ]
+
+[[bin]]
+name = "tui"
+path = "src/bin/tui/main.rs"
+required-features = [ "build-binary" ]
