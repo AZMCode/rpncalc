@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Rust
-        uses: actions-rs/toolchain
+        uses: actions-rs/rust-toolchain@v1.0.6
         with:
           toolchain: nightly
           target: wasm32-unknown-unknown
