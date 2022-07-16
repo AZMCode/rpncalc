@@ -20,12 +20,15 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     steps:
+      - name: Get Current Date
+        run: |
+          echo "CURR_DATE=$(date --iso-8601)" >> $GITHUB_ENV
       - name: Cache previous uses
         id: env-ready
         uses: actions/cache@v3.0.5
         with:
           path: $HOME/.cargo/*
-          key: pages-deploy-env-ready-$(date --iso-8601)
+          key: pages-deploy-env-ready-${{ env.CURR_DATE }}
       - name: Install Rust Native
         if: ${{ steps.env-ready.outputs.cache-hit == 'false' }}
         uses: actions-rs/toolchain@v1.0.6
