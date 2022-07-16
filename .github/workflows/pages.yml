@@ -75,6 +75,8 @@ jobs:
       - name: Commit and push new files
         run: |
           cd $GITHUB_WORKSPACE/pages
+          git config user.email "noreply@github.com"
+          git config user.name "Github Actions Runner"
           git add -A
           git commit -m "Deployment for ${{ github.ref }}"
           git push
