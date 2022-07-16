@@ -1,0 +1,64 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+      - name: Install Rust
+        uses: actions-rs/toolchain
+        with:
+          toolchain: nightly
+          target: wasm32-unknown-unknown
+          default: true
+      - name: Install Trunk
+        run: |
+          cargo install trunk
+      - name: Check out Main repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          path: ./rpncalc
+      - name: Check out Pages repo
+        uses: actions/checkout@v3
+        with:
+          repository: git@github.com:AZMCode/rpncalc-yew-deployment.git
+          ssh-key: ${{ secrets.PAGES_DEPLOYMENT }}
+          path: ./pages
+      - name: Build Deployment
+        run: |
+          cd $GITHUB_WORKSPACE/rpncalc/rpncalc-yew
+          trunk build
+      - name: Remove existing files in Pages deployment
+        run: |
+          cd $GITHUB_WORKSPACE/pages
+          for entry in * ; do
+            if [[ "$entry" != ".git" ]]; then
+              rm -rf $entry;
+            fi
+          done
+      - name: Copy new files to Pages deployment
+        run: |
+          cp $GITHUB_WORKSPACE/rpncalc/rpncalc-yew/dist/* $GITHUB_WORKSPACE/pages/
+      - name:Commit and push new files
+        run: |
+          cd $GITHUB_WORKSPACE/pages
+          git add -A
+          git commit -m "Deployment for ${{ github.ref }}"
+          git push
+          
