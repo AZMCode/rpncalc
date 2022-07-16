@@ -33,9 +33,6 @@ jobs:
             ~/.profile
             ~/.bash_profile
           key: pages-deploy-env-ready-${{ env.CURR_DATE }}
-      - name: Debugging Action
-        run: |
-          ls -al ~
       - name: Install Rust Native
         if: ${{ steps.env-ready.outputs.cache-hit == false }}
         uses: actions-rs/toolchain@v1.0.6
