@@ -1,9 +1,6 @@
-[submodule "rpncalc_code"]
-	path = rpncalc_code
-	url = ./rpncalc-code/
 [submodule "rpncalc-code"]
 	path = rpncalc-code
-	url = ../rpncalc-code/
+	url = git@github.com:AZMCode/rpncalc-code.git
 [submodule "rpncalc-yew"]
 	path = rpncalc-yew
-	url = ./rpncalc-yew
+	url = git@github.com:AZMCode/rpncalc-yew.git
