@@ -55,7 +55,7 @@ jobs:
       - name: Copy new files to Pages deployment
         run: |
           cp $GITHUB_WORKSPACE/rpncalc/rpncalc-yew/dist/* $GITHUB_WORKSPACE/pages/
-      - name:Commit and push new files
+      - name: Commit and push new files
         run: |
           cd $GITHUB_WORKSPACE/pages
           git add -A
