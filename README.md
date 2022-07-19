@@ -3,7 +3,7 @@
 
 TUI application, language, and runtime library for RPN calculation
 
-#Running
+# Running
 `cargo run --bin tui` after cloning the repository
 
 You can also try the PWA, built with yew, here: `azmcode.dev/rpncalc-yew-deployment`
